@@ -15,18 +15,19 @@ class PostItem extends StatelessWidget {
     }));
   }
 
-  toProfile(BuildContext context){
+  toProfile(BuildContext context, tag){
     Navigator.push(context, MaterialPageRoute(builder: (context){
       return new Profile(user:{
         'id': post.id,
         'name': post.author,
-        'avatar': post.avatar
-      });
+        'avatar': post.avatar,
+      },tag: tag,);
     }));
   }
 
   @override
   Widget build(BuildContext context) {
+    final time = DateTime.now().toIso8601String();
     return new GestureDetector(
       onTap: (){
         toDetail(context,post);
@@ -81,7 +82,7 @@ class PostItem extends StatelessWidget {
                 margin: EdgeInsets.only(top: 12.0),
                 child: new Row(
                   children: <Widget>[
-                    new Hero(tag: post.author, child: new Container(
+                    new Hero(tag: post.author+time, child: new Container(
                       width: 32.0,
                       height: 32.0,
                       margin: EdgeInsets.only(right: 6.0),
@@ -107,7 +108,7 @@ class PostItem extends StatelessWidget {
                 ),
               ),
               onTap: (){
-                toProfile(context);
+                toProfile(context,post.author+time);
               },
             )
           ],

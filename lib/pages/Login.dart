@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cnode/common/api.dart';
-import 'package:cnode/common/GlobalNotification.dart';
+import 'package:cnode/common/user.dart';
+import 'package:qr_mobile_vision/qr_camera.dart';
 
 
 class Login extends StatefulWidget{
@@ -12,13 +13,34 @@ class Login extends StatefulWidget{
   }
 }
 
-class LoginState extends State<Login> {
+class LoginState extends State<Login> with SingleTickerProviderStateMixin{
   SharedPreferences prefs;
   final TextEditingController controller = new TextEditingController();
+  double dy = 1.0;
+  AnimationController _animationController;
+  Animation<Offset> animation;
 
   initState(){
     initPrefs();
+    _animationController = new AnimationController(
+      vsync: this,
+      duration: new Duration(milliseconds: 300)
+    );
+    animation = new Tween(
+      begin: new Offset(0.0, 1.0),
+      end: new Offset(0.0, 0.0),
+    ).animate(new CurvedAnimation(parent: _animationController, curve: Curves.ease));
+    animation.addStatusListener(listener);
     super.initState();
+  }
+
+  listener(AnimationStatus status){
+    if(status==AnimationStatus.completed){
+      setState(() {
+        dy = animation.value.dy;
+      });
+      print(dy);
+    }
   }
 
   initPrefs() async{
@@ -27,20 +49,23 @@ class LoginState extends State<Login> {
 
   dispose(){
     controller.dispose();
+    _animationController.dispose();
+    _animationController.removeStatusListener(listener);
     super.dispose();
   }
 
   login() async{
-    final mytoken = 'cd10e5eb-2720-4314-a5fd-69b99ed8ec70';
-    final res = await loginWithAccessToken(mytoken);
+//    final mytoken = 'cd10e5eb-2720-4314-a5fd-69b99ed8ec70';
+    final res = await loginWithAccessToken(controller.text);
     if(res['success']){
+      final User u = await getUser(res['loginname']);
       prefs.setString('username', res['loginname']);
       prefs.setString('avatar', res['avatar_url']);
       prefs.setString('id', res['id']);
       prefs.setString('accesstoken', controller.text);
+      prefs.setString('score', u.score.toString());
       Navigator.pop(context);
     }else{
-      print(res['error_msg']);
       showDialog(
         context: context,
         builder: (context){
@@ -58,6 +83,10 @@ class LoginState extends State<Login> {
         }
       );
     }
+  }
+
+  scanQrcode()async{
+    _animationController.forward();
   }
 
   @override
@@ -139,29 +168,21 @@ class LoginState extends State<Login> {
                         ))
                       ],
                     ),
-                    new Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        new Row(
-                          children: <Widget>[
-                            new Icon(Icons.crop_free),
-                            new Container(
-                              child: new Text('扫码登录'),
-                              margin: EdgeInsets.only(left: 8.0),
-                            )
-                          ],
-                        ),
-                        new Row(
-                          children: <Widget>[
-                            new Icon(Icons.code),
-                            new Container(
-                              child: new Text('GitHub登录'),
-                              margin: EdgeInsets.only(left: 8.0),
-                            )
-                          ],
-                        )
-                      ],
-                    )
+                    new GestureDetector(
+                      child: new Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new Icon(Icons.crop_free),
+                          new Container(
+                            child: new Text('扫码登录'),
+                            margin: EdgeInsets.only(left: 8.0),
+                          )
+                        ],
+                      ),
+                      onTap: (){
+                        scanQrcode();
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -188,6 +209,37 @@ class LoginState extends State<Login> {
                 },
               )
             ],
+          ),
+          new SlideTransition(
+            position: animation,
+            child:  new Scaffold(
+              appBar: new AppBar(
+                title: new Text('扫描二维码'),
+                leading: GestureDetector(
+                  child: Icon(Icons.arrow_back),
+                  onTap: (){
+                    _animationController.reverse();
+                  },
+                ),
+              ),
+              body: new Container(
+                color: Color.fromRGBO(255, 255, 255, 1.0),
+                child: new Center(
+                  child: new SizedBox(
+                    width: 300.0,
+                    height: 300.0,
+                    child: dy == 1.0 ? new Container() :new QrCamera(
+                        qrCodeCallback: (code){
+                          _animationController.reverse();
+                          if(code!=null&&code.isNotEmpty){
+                            controller.text = code;
+                          }
+                        }
+                    ),
+                  ),
+                ),
+              ),
+            ),
           )
         ],
       ),

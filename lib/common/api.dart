@@ -38,8 +38,8 @@ getPosts(int page,[String tab='all']) async{
   return list.map((json)=>Post.fromJSON(json));
 }
 
-getPost(String id) async{
-  final response = await http.get('${BASE_URL}/topic/$id?mdrender=false');
+getPost(String id,[String token = '']) async{
+  final response = await http.get('${BASE_URL}/topic/$id?mdrender=false&accesstoken=${token}');
   final body = json.decode(response.body);
   final list = body['data']['replies'].toList();
   final post = Post.fromJSON(body['data']);

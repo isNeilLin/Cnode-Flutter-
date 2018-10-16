@@ -6,7 +6,8 @@ import 'package:cnode/pages/Post.dart';
 
 class Profile extends StatefulWidget {
   final user;
-  Profile({Key key, this.user}):super(key:key);
+  String tag;
+  Profile({Key key, this.user,this.tag}):super(key:key);
 
   @override
   State<StatefulWidget> createState() {
@@ -228,7 +229,7 @@ class ProfileState extends State<Profile> with TickerProviderStateMixin{
                           new Column(
                             children: <Widget>[
                               new Hero(
-                                  tag: username,
+                                  tag: widget.tag,
                                   child: new Container(
                                     width: 90.0,
                                     height: 90.0,

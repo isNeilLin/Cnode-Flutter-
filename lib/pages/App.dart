@@ -75,7 +75,7 @@ class _MyHomePageState extends State<MyHomePage> {
       login();
     }else{
       Navigator.push(context, MaterialPageRoute(builder: (context){
-        return new Publish();
+        return new Publish(prefs: widget.prefs,);
       }));
     }
   }

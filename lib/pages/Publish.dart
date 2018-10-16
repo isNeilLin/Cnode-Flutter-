@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cnode/common/api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cnode/pages/Post.dart';
 
 class Publish extends StatefulWidget {
+  SharedPreferences prefs;
+  Publish({Key key, this.prefs}):super(key:key);
+
   @override
   State<StatefulWidget> createState() {
     return PublishState();
@@ -16,7 +22,40 @@ class PublishState extends State<Publish> {
 
   publish(){
     final title = _controller.text;
-    print(title);
+    String content = _mdcontroller.text;
+    if(widget.prefs.getBool('isOpenTrail')!=null&&widget.prefs.getBool('isOpenTrail')){
+      content = '${content}\n${widget.prefs.getString('trail')}';
+    }
+    post(title, content);
+  }
+
+  post(String title, String content) async{
+    final token = widget.prefs.getString('accesstoken');
+    final res = await createPost(token, title, tab, content);
+    if(res['success']){
+      Navigator.push(context, MaterialPageRoute(
+          builder: (context){
+            return new PostDetail(id: res['topic_id'],);
+          })
+      );
+    }else{
+      showDialog(
+        context: context,
+        builder: (context){
+          return AlertDialog(
+            content: new Text(res['error_msg']),
+            actions: <Widget>[
+              FlatButton(
+                child: new Text('确定'),
+                onPressed: (){
+                  Navigator.pop(context);
+                },
+              )
+            ],
+          );
+        }
+      );
+    }
   }
 
   tabChange(String val){
@@ -31,12 +70,7 @@ class PublishState extends State<Publish> {
 
   bold(){
     if(_focusNode.hasFocus){
-//      _mdcontroller.text = 'test';
-//      final sel = _mdcontroller.selection;
 
-//      final range = new TextRange(start: sel.start, end: sel.end);
-//      range.textAfter('**string**');
-//      _mdcontroller.selection = new TextSelection(baseOffset: 6, extentOffset: 6);
     }
   }
 

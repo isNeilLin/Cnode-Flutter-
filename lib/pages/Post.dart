@@ -8,6 +8,7 @@ import 'package:cnode/pages/Login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:cnode/pages/Profile.dart';
+import 'package:share/share.dart';
 
 class PostDetail extends StatefulWidget {
   String id;
@@ -21,9 +22,14 @@ class PostDetail extends StatefulWidget {
 
 class PostState extends State<PostDetail> {
   SharedPreferences prefs;
-
+  bool _visible;
+  TextEditingController _controller = TextEditingController();
+  Post post;
   initState(){
     super.initState();
+    setState(() {
+      _visible = true;
+    });
     initPrefs();
   }
 
@@ -35,7 +41,11 @@ class PostState extends State<PostDetail> {
   }
 
   Future _future() async{
-    final result = await getPost(widget.id);
+    final token = prefs.getString('accesstoken') == null ? '' : prefs.getString('accesstoken');
+    final result = await getPost(widget.id,token);
+    setState(() {
+      post = result['post'];
+    });
     return result;
   }
 
@@ -61,14 +71,104 @@ class PostState extends State<PostDetail> {
     );
   }
 
-  toProfile(context, user){
+  authorLabel(bool isAuthor){
+    if(isAuthor){
+      return new Container(
+        margin: EdgeInsets.only(left: 8.0),
+        padding: EdgeInsets.symmetric(horizontal: 2.0),
+        decoration: BoxDecoration(
+            color: Color.fromRGBO(139, 196, 0, 1.0),
+            borderRadius: BorderRadius.all(Radius.circular(4.0))
+        ),
+        child: new Text('作者', style: TextStyle(color: Colors.white,fontSize: 13.0),),
+      );
+    }
+    return new Container();
+  }
+
+  showReply(BuildContext context, [String replyId]){
+    setState(() {
+      _visible = false;
+    });
+    showBottomSheet(context: context,builder: (context){
+      return new Container(
+        height: 200.0,
+        child: new Column(
+          children: <Widget>[
+            new Row(
+              children: <Widget>[
+                new IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: (){
+                      Navigator.pop(context);
+                      setState(() {
+                        _visible = true;
+                      });
+                    }
+                ),
+                new Expanded(
+                    child: new Text('评论')
+                ),
+                new IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: (){
+                      sendReply(replyId);
+                    }
+                )
+              ],
+            ),
+            new Divider(height: 1.0,),
+            new Expanded(
+              child: new TextField(
+                controller: _controller,
+                cursorColor: Theme.of(context).accentColor,
+                maxLengthEnforced: false,
+                style: TextStyle(
+                    fontSize: 18.0,
+                    color: Colors.black87,
+                    height: 1.2
+                ),
+                maxLines: 5000,
+                decoration: InputDecoration(
+                    contentPadding: EdgeInsets.only(top: 10.0,bottom: 10.0,left: 16.0),
+                    hintText: '说点什么吧',
+                    border: InputBorder.none
+                ),
+              )
+            )
+          ],
+        ),
+      );
+    });
+  }
+
+  share(){
+    final url = 'https://cnodejs.org/topic/${post.id}';
+    Share.share(url);
+  }
+
+
+  sendReply([String replyId]) async{
+    final content = _controller.text;
+    final token = prefs.getString('accesstoken');
+    var res;
+    if(replyId!=null){
+      res = await replyTopic(token, post.id, content,replyId);
+    }else{
+      res = await replyTopic(token, post.id, content);
+    }
+    print(res);
+  }
+
+  toProfile(context, user,tag){
     Navigator.push(context, MaterialPageRoute(builder: (context){
-      return new Profile(user:user);
+      return new Profile(user:user,tag: tag,);
     }));
   }
 
   buildPost(Post post, commets){
     final create = fromNow(post.create).split(' ')[0];
+    final now = DateTime.now().toIso8601String();
     return new ListView(
       children: <Widget>[
         new Container(
@@ -81,23 +181,26 @@ class PostState extends State<PostDetail> {
           margin: EdgeInsets.symmetric(vertical: 16.0),
           child: new Row(
             children: <Widget>[
-              new GestureDetector(
-                child: new Container(
-                  margin: EdgeInsets.symmetric(horizontal: 16.0),
-                  width: 50.0,
-                  height: 50.0,
-                  decoration: BoxDecoration(
-                      image: DecorationImage(image: NetworkImage(post.avatar)),
-                      borderRadius: BorderRadius.circular(100.0)
-                  ),
-                ),
-                onTap: (){
-                  toProfile(context,{
-                    'id': post.id,
-                    'name': post.author,
-                    'avatar': post.avatar
-                  });
-                },
+              new Hero(
+                tag: post.author+now,
+                child: new GestureDetector(
+                    child: new Container(
+                      margin: EdgeInsets.symmetric(horizontal: 16.0),
+                      width: 50.0,
+                      height: 50.0,
+                      decoration: BoxDecoration(
+                          image: DecorationImage(image: NetworkImage(post.avatar)),
+                          borderRadius: BorderRadius.circular(100.0)
+                      ),
+                    ),
+                    onTap: (){
+                      toProfile(context,{
+                        'id': post.id,
+                        'name': post.author,
+                        'avatar': post.avatar
+                      },post.author+now);
+                    },
+                  )
               ),
               new Expanded(
                 child: new Column(
@@ -151,6 +254,7 @@ class PostState extends State<PostDetail> {
             itemBuilder: (context, index){
               final Comment comment = commets[index];
               final create = fromNow(comment.create).split(' ')[0];
+              final now = DateTime.now().toIso8601String();
               return new Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -159,32 +263,40 @@ class PostState extends State<PostDetail> {
                     child: new Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: <Widget>[
-                        new GestureDetector(
-                          child: new Container(
-                            margin: EdgeInsets.symmetric(horizontal: 16.0),
-                            width: 50.0,
-                            height: 50.0,
-                            decoration: BoxDecoration(
-                                image: DecorationImage(image: NetworkImage(comment.avatar)),
-                                borderRadius: BorderRadius.circular(100.0)
+                        new Hero(
+                          child: new GestureDetector(
+                            child: new Container(
+                              margin: EdgeInsets.symmetric(horizontal: 16.0),
+                              width: 50.0,
+                              height: 50.0,
+                              decoration: BoxDecoration(
+                                  image: DecorationImage(image: NetworkImage(comment.avatar)),
+                                  borderRadius: BorderRadius.circular(100.0)
+                              ),
                             ),
+                            onTap: (){
+                              toProfile(context,{
+                                'id': comment.id,
+                                'name': comment.author,
+                                'avatar': comment.avatar,
+                              },comment.author+now);
+                            },
                           ),
-                          onTap: (){
-                            toProfile(context,{
-                              'id': comment.id,
-                              'name': comment.author,
-                              'avatar': comment.avatar
-                            });
-                          },
+                          tag: comment.author+now,
                         ),
                         new Expanded(
                             child: new Column(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                new Container(
-                                  margin: EdgeInsets.only(left: 8.0),
-                                  child: new Text(comment.author,),
+                                new Row(
+                                  children: <Widget>[
+                                    new Container(
+                                      margin: EdgeInsets.only(left: 8.0),
+                                      child: new Text(comment.author,),
+                                    ),
+                                    authorLabel(comment.author==post.author)
+                                  ],
                                 ),
                                 new Container(
                                     margin: EdgeInsets.only(top: 8.0),
@@ -203,27 +315,13 @@ class PostState extends State<PostDetail> {
                           margin: EdgeInsets.symmetric(horizontal: 16.0),
                           child: new Row(
                             children: <Widget>[
-                              new GestureDetector(
-                                child: comment.isUped ? new Icon(Icons.thumb_up,) : new Icon(Icons.thumb_up,color: Colors.grey,),
-                                onTap: (){
-                                  final username = prefs.getString('username');
-                                  if(username!=null && username.isNotEmpty){
-                                    print('like');
-                                  }else{
-                                    login();
-                                  }
-                                },
-                              ),
-                              new Container(
-                                margin: EdgeInsets.symmetric(horizontal: 4.0),
-                                child: new Text(comment.ups.length.toString()),
-                              ),
+                              Up(commet: comment,username: prefs.getString('username'),token: prefs.getString('accesstoken')),
                               new GestureDetector(
                                 child: new Icon(Icons.reply,size: 32.0,color: Colors.grey,),
                                 onTap: (){
                                   final username = prefs.getString('username');
                                   if(username!=null && username.isNotEmpty){
-                                    print('reply');
+                                    showReply(context, comment.id);
                                   }else{
                                     login();
                                   }
@@ -262,11 +360,14 @@ class PostState extends State<PostDetail> {
         ),
         title: new Text('话题'),
         actions: <Widget>[
-          new GestureDetector(
-            child: new Icon(Icons.share),
-            onTap: (){
-              print('share');
-            },
+          new Container(
+            child: new GestureDetector(
+              child: new Icon(Icons.share),
+              onTap: (){
+                share();
+              },
+            ),
+            margin: EdgeInsets.only(right: 10.0),
           )
         ],
       ),
@@ -285,6 +386,29 @@ class PostState extends State<PostDetail> {
         },
         future: _future(),
       ),
+      floatingActionButton: new Builder(builder: (context){
+        return new AnimatedOpacity(
+          // If the Widget should be visible, animate to 1.0 (fully visible). If
+          // the Widget should be hidden, animate to 0.0 (invisible).
+          opacity: _visible ? 1.0 : 0.0,
+          duration: Duration(milliseconds: 300),
+          // The green box needs to be the child of the AnimatedOpacity
+          child: new FloatingActionButton(
+            onPressed: (){
+              final username = prefs.getString('username');
+              if(username!=null && username.isNotEmpty){
+                showReply(context);
+              }else{
+                login();
+              }
+            },
+            child: new Icon(
+              Icons.reply,
+              color: Color.fromRGBO(236, 236, 236, 1.0),
+            ),
+          ),
+        );
+      })
     );
   }
 }
@@ -301,11 +425,10 @@ class Like extends StatefulWidget{
 }
 
 class LikeState extends State<Like> {
-  bool like = false;
+  bool like;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     setState(() {
       like = widget.post.isCollect;
@@ -336,6 +459,7 @@ class LikeState extends State<Like> {
   changeLike(){
     final username = widget.prefs.getString('username');
     if(username!=null && username.isNotEmpty){
+      collect(!like);
       setState(() {
         like = !like;
       });
@@ -344,11 +468,19 @@ class LikeState extends State<Like> {
     }
   }
 
+  collect(bool isCollect) async{
+    if(isCollect){
+      collectTopic(widget.post.id, widget.prefs.getString('accesstoken'));
+    }else{
+      deCollectTopic(widget.post.id, widget.prefs.getString('accesstoken'));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if(like){
       return new GestureDetector(
-        child: new Icon(Icons.favorite, color: Colors.red,),
+        child: new Icon(Icons.favorite, color: Theme.of(context).accentColor,),
         onTap: changeLike,
       );
     }
@@ -356,5 +488,97 @@ class LikeState extends State<Like> {
       child: new Icon(Icons.favorite_border),
       onTap: changeLike,
     );
+  }
+}
+
+class Up extends StatefulWidget {
+  Comment commet;
+  String username;
+  String token;
+  Up({Key key, this.commet, this.username, this.token}):super(key:key);
+
+  @override
+  State<StatefulWidget> createState() {
+    return UpState();
+  }
+}
+
+class UpState extends State<Up>{
+  bool like;
+  int length;
+
+  initState(){
+    super.initState();
+    setState(() {
+      like = widget.commet.isUped;
+      length = widget.commet.ups.length;
+    });
+  }
+
+  void login(){
+    showDialog(
+        context: context,
+        builder: (BuildContext context){
+          return AlertDialog(
+            content: new Text('当前操作需要登录，是否登录?'),
+            actions: <Widget>[
+              new FlatButton(onPressed: (){
+                Navigator.of(context).pop();
+              }, child: new Text('取消',style: TextStyle(color: Color.fromRGBO(131, 131, 131, 1.0)),)),
+              new FlatButton(onPressed: (){
+                Navigator.of(context).pop();
+                Navigator.push(context, new MaterialPageRoute(builder: (context){
+                  return new Login();
+                }));
+              }, child: new Text('登录',style: TextStyle(color: Colors.blueAccent))),
+            ],
+          );
+        }
+    );
+  }
+
+  buildCommet(){
+    return new Row(
+      children: <Widget>[
+        new GestureDetector(
+          child: like ? new Icon(Icons.thumb_up,color: Theme.of(context).accentColor,) : new Icon(Icons.thumb_up,color: Colors.grey,),
+          onTap: (){
+            final username = widget.username;
+            if(username!=null && username.isNotEmpty){
+              up();
+            }else{
+              login();
+            }
+          },
+        ),
+        new Container(
+          margin: EdgeInsets.symmetric(horizontal: 4.0),
+          child: new Text(length.toString()),
+        ),
+      ],
+    );
+  }
+
+  up()async{
+    final res = await upReply(widget.token,widget.commet.id);
+    if(res['success']){
+      if(!like){
+        setState(() {
+          like = !like;
+          length = length+1;
+        });
+      }else{
+        setState(() {
+          like = !like;
+          length = length - 1;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    return buildCommet();
   }
 }
