@@ -27,6 +27,7 @@ class SettingState extends State<Setting> {
   }
 
   changeTrail(bool openTrail){
+    print(openTrail);
     widget.prefs.setBool('openTrail', openTrail);
     setState(() {
       isOpenTrail = openTrail;

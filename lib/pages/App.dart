@@ -62,7 +62,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    widget.prefs.clear();
     setState(() {
       tab = 'all';
       username = widget.prefs.getString('username') == null ? '' : widget.prefs.getString('username');

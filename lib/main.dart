@@ -9,6 +9,11 @@ class MyApp extends StatelessWidget {
 
   Future _future () async{
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    String defaultTrail = '来自[CNode-Flutter](https://github.com/isNeilLin/Cnode-Flutter-)';
+    final trail = prefs.getString('trail');
+    if(trail==null){
+      prefs.setString('trail', defaultTrail);
+    }
     await Future.delayed(Duration(seconds: 3));
     return prefs;
   }

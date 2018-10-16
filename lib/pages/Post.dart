@@ -24,7 +24,9 @@ class PostState extends State<PostDetail> {
   SharedPreferences prefs;
   bool _visible;
   TextEditingController _controller = TextEditingController();
+  FocusNode _focusNode = FocusNode();
   Post post;
+  int order = 0;
   initState(){
     super.initState();
     setState(() {
@@ -86,6 +88,75 @@ class PostState extends State<PostDetail> {
     return new Container();
   }
 
+  title(){
+    insert('\n# ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
+  }
+
+  bold(){
+    insert('**string**', (startText){
+      return TextSelection(baseOffset: startText.length+2, extentOffset: startText.length+8);
+    });
+  }
+
+  italic(){
+    insert('*string*', (startText){
+      return TextSelection(baseOffset: startText.length+1, extentOffset: startText.length+7);
+    });
+  }
+
+  quote(){
+    insert('\n> ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
+  }
+
+  ulist(){
+    insert('\n- ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
+  }
+  olist(){
+    setState(() {
+      order = order+1;
+    });
+    insert('\n${order}. ', (startText){
+      final len = (order).toString().length;
+      return TextSelection(baseOffset: startText.length+2+len, extentOffset: startText.length+2+len);
+    });
+  }
+
+  code(){
+    insert('\n```\n\n``` ', (startText){
+      return TextSelection(baseOffset: startText.length+5, extentOffset: startText.length+5);
+    });
+  }
+  link(){
+    final text = '[title](url)';
+    insert(text, (startText){
+      return TextSelection(baseOffset: startText.length+text.length-4, extentOffset: startText.length+text.length-1);
+    });
+  }
+  image(){
+    final text = '![Image](src)';
+    insert(text, (startText){
+      return TextSelection(baseOffset: startText.length+text.length-4, extentOffset: startText.length+text.length-1);
+    });
+  }
+
+  insert(String text, cb){
+    if(_focusNode.hasFocus){
+      final startText = _controller.text.substring(0, _controller.selection.base.offset);
+      final endText = _controller.text.substring(_controller.selection.base.offset);
+      var str = startText + text + endText;
+      TextSelection selection = cb(startText);
+      _controller.value = TextEditingValue(
+          text: str,
+          selection: selection
+      );
+    }
+  }
   showReply(BuildContext context, [String replyId]){
     setState(() {
       _visible = false;
@@ -107,13 +178,52 @@ class PostState extends State<PostDetail> {
                     }
                 ),
                 new Expanded(
-                    child: new Text('评论')
+                  child: new SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: new Row(
+                        children: <Widget>[
+                          new IconButton(
+                              icon: new Icon(Icons.title,color: Colors.black54,),
+                              onPressed: title),
+                          new IconButton(
+                              icon: new Icon(Icons.format_bold,color: Colors.black54,),
+                              onPressed: bold),
+                          new IconButton(
+                              icon: new Icon(Icons.format_italic,color: Colors.black54),
+                              onPressed: italic),
+                          new IconButton(
+                              icon: new Icon(Icons.format_quote,color: Colors.black54),
+                              onPressed: quote),
+                          new IconButton(
+                              icon: new Icon(Icons.format_list_bulleted,color: Colors.black54),
+                              onPressed: ulist),
+                          new IconButton(
+                              icon: new Icon(Icons.format_list_numbered,color: Colors.black54),
+                              onPressed: olist),
+                          new IconButton(
+                              icon: new Icon(Icons.code,color: Colors.black54),
+                              onPressed: code),
+                          new IconButton(
+                              icon: new Icon(Icons.link,color: Colors.black54),
+                              onPressed: link),
+                          new IconButton(
+                              icon: new Icon(Icons.image,color: Colors.black54),
+                              onPressed: image),
+                        ],
+                      ),
+                    )
                 ),
-                new IconButton(
-                    icon: Icon(Icons.send),
-                    onPressed: (){
-                      sendReply(replyId);
-                    }
+                new GestureDetector(
+                  child: new Container(
+                    width: 48.0,
+                    height: 48.0,
+                    padding: EdgeInsets.all(8.0),
+                    child: new Icon(Icons.send),
+                  ),
+                  onTap: (){
+                    print('send');
+                    sendReply(replyId);
+                  }
                 )
               ],
             ),
@@ -121,6 +231,7 @@ class PostState extends State<PostDetail> {
             new Expanded(
               child: new TextField(
                 controller: _controller,
+                focusNode: _focusNode,
                 cursorColor: Theme.of(context).accentColor,
                 maxLengthEnforced: false,
                 style: TextStyle(
@@ -149,15 +260,20 @@ class PostState extends State<PostDetail> {
 
 
   sendReply([String replyId]) async{
-    final content = _controller.text;
+    String content = _controller.text;
     final token = prefs.getString('accesstoken');
-    var res;
-    if(replyId!=null){
-      res = await replyTopic(token, post.id, content,replyId);
-    }else{
-      res = await replyTopic(token, post.id, content);
+    if(prefs.getBool('openTrail')!=null&&prefs.getBool('openTrail')){
+      content = '${content}\n\n${prefs.getString('trail')}';
     }
-    print(res);
+    if(replyId!=null){
+      await replyTopic(token, post.id, content,replyId);
+    }else{
+      await replyTopic(token, post.id, content);
+    }
+    Navigator.pop(context);
+    setState(() {
+      _visible = true;
+    });
   }
 
   toProfile(context, user,tag){

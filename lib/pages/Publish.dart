@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cnode/common/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cnode/pages/Post.dart';
+import 'package:cnode/pages/Preview.dart';
 
 class Publish extends StatefulWidget {
   SharedPreferences prefs;
@@ -19,6 +20,7 @@ class PublishState extends State<Publish> {
   TextEditingController _controller = TextEditingController();
   TextEditingController _mdcontroller = TextEditingController();
   FocusNode _focusNode = FocusNode();
+  int order = 0;
 
   publish(){
     final title = _controller.text;
@@ -33,7 +35,7 @@ class PublishState extends State<Publish> {
     final token = widget.prefs.getString('accesstoken');
     final res = await createPost(token, title, tab, content);
     if(res['success']){
-      Navigator.push(context, MaterialPageRoute(
+      Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (context){
             return new PostDetail(id: res['topic_id'],);
           })
@@ -65,41 +67,82 @@ class PublishState extends State<Publish> {
   }
 
   title(){
-
+    insert('\n# ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
   }
 
   bold(){
-    if(_focusNode.hasFocus){
-
-    }
+    insert('**string**', (startText){
+      return TextSelection(baseOffset: startText.length+2, extentOffset: startText.length+8);
+    });
   }
 
   italic(){
-
+    insert('*string*', (startText){
+      return TextSelection(baseOffset: startText.length+1, extentOffset: startText.length+7);
+    });
   }
 
   quote(){
-
+    insert('\n> ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
   }
 
   ulist(){
-
+    insert('\n- ', (startText){
+      return TextSelection(baseOffset: startText.length+3, extentOffset: startText.length+3);
+    });
   }
   olist(){
-
+    setState(() {
+      order = order+1;
+    });
+    insert('\n${order}. ', (startText){
+      final len = (order).toString().length;
+      return TextSelection(baseOffset: startText.length+2+len, extentOffset: startText.length+2+len);
+    });
   }
 
   code(){
-
+    insert('\n```\n\n``` ', (startText){
+      return TextSelection(baseOffset: startText.length+5, extentOffset: startText.length+5);
+    });
   }
   link(){
-
+    final text = '[title](url)';
+    insert(text, (startText){
+      return TextSelection(baseOffset: startText.length+text.length-4, extentOffset: startText.length+text.length-1);
+    });
   }
   image(){
-
+    final text = '![Image](src)';
+    insert(text, (startText){
+      return TextSelection(baseOffset: startText.length+text.length-4, extentOffset: startText.length+text.length-1);
+    });
   }
   preview(){
+    String content = _mdcontroller.text;
+    if(widget.prefs.getBool('openTrail')!=null&&widget.prefs.getBool('openTrail')){
+      content = '${content}\n\n${widget.prefs.getString('trail')}';
+    }
+    Navigator.push(context, new MaterialPageRoute(builder: (context){
+      return new Preview(content: content,);
+    }));
+  }
 
+  insert(String text, cb){
+    if(_focusNode.hasFocus){
+      final startText = _mdcontroller.text.substring(0, _mdcontroller.selection.base.offset);
+      final endText = _mdcontroller.text.substring(_mdcontroller.selection.base.offset);
+      var str = startText + text + endText;
+      TextSelection selection = cb(startText);
+      _mdcontroller.value = TextEditingValue(
+          text: str,
+          selection: selection
+      );
+    }
   }
 
   @override
@@ -213,21 +256,24 @@ class PublishState extends State<Publish> {
           ),
           new Divider(height: 1.0,),
           new Expanded(
-            child: TextField(
-              controller: _mdcontroller,
-              focusNode: _focusNode,
-              cursorColor: Theme.of(context).accentColor,
-              maxLengthEnforced: false,
-              style: TextStyle(
-                fontSize: 20.0,
-                color: Colors.black87,
-                height: 1.2
-              ),
-              maxLines: 5000,
-              decoration: InputDecoration(
-                contentPadding: EdgeInsets.only(top: 10.0,bottom: 10.0,left: 16.0),
-                hintText: '说点什么吧',
-                border: InputBorder.none
+            child: new SingleChildScrollView(
+              controller: ScrollController(),
+              child: TextField(
+                controller: _mdcontroller,
+                focusNode: _focusNode,
+                cursorColor: Theme.of(context).accentColor,
+                maxLengthEnforced: false,
+                style: TextStyle(
+                    fontSize: 20.0,
+                    color: Colors.black87,
+                    height: 1.2
+                ),
+                maxLines: 5000,
+                decoration: InputDecoration(
+                    contentPadding: EdgeInsets.only(top: 10.0,bottom: 10.0,left: 16.0),
+                    hintText: '说点什么吧',
+                    border: InputBorder.none
+                ),
               ),
             )
           )

@@ -55,14 +55,14 @@ class LoginState extends State<Login> with SingleTickerProviderStateMixin{
   }
 
   login() async{
-//    final mytoken = 'cd10e5eb-2720-4314-a5fd-69b99ed8ec70';
-    final res = await loginWithAccessToken(controller.text);
+    final mytoken = 'cd10e5eb-2720-4314-a5fd-69b99ed8ec70';
+    final res = await loginWithAccessToken(mytoken);
     if(res['success']){
       final User u = await getUser(res['loginname']);
       prefs.setString('username', res['loginname']);
       prefs.setString('avatar', res['avatar_url']);
       prefs.setString('id', res['id']);
-      prefs.setString('accesstoken', controller.text);
+      prefs.setString('accesstoken', mytoken);
       prefs.setString('score', u.score.toString());
       Navigator.pop(context);
     }else{
