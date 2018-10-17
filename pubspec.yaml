@@ -23,7 +23,6 @@ dependencies:
   flutter_markdown: ^0.2.0
   shared_preferences: ^0.4.3
   url_launcher: ^3.0.0
-  zefyr: ^0.1.2
   qr_mobile_vision: ^0.1.0
   share: ^0.5.3
 
