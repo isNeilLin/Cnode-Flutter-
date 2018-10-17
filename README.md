@@ -4,15 +4,20 @@
 
 ## ScreenShots
 
-<img src="./screenshots/0.jpeg" width="200"/><img src="./screenshots/1.jpeg" width="200"/><img src="./screenshots/2.jpeg" width="200"/>
+<img src="./screenshots/0.jpeg" width="250"/> <img src="./screenshots/1.jpeg" width="250"/> <img src="./screenshots/2.jpeg" width="250"/>
 
 ## Dependencies
 
 [pull_to_refresh](https://pub.dartlang.org/packages/pull_to_refresh)
+
 [flutter_markdown](https://pub.dartlang.org/packages/flutter_markdown)
+
 [shared_preferences](https://pub.dartlang.org/packages/shared_preferences)
+
 [url_launcher](https://pub.dartlang.org/packages/url_launcher)
+
 [qr_mobile_vision](https://pub.dartlang.org/packages/qr_mobile_vision)
+
 [share](https://pub.dartlang.org/packages/share)
 
 ## 下载
