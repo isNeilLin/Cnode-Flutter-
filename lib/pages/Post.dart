@@ -356,7 +356,7 @@ class PostState extends State<PostDetail> {
         new Divider(height: 1.0,),
         new Container(
           padding: EdgeInsets.only(left: 16.0,top: 16.0,bottom: 16.0),
-          color: Color.fromRGBO(245, 245, 245, 1.0),
+          color: Theme.of(context).cardColor,
           child: new Text('${commets.length}条回复',style: TextStyle(
             fontSize: 16.0,
             fontWeight: FontWeight.bold
